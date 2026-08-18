@@ -106,10 +106,10 @@ docker run --rm --memory=1g \
   CUDA, no Xenoncat/fasm, no OpenSSL.
 - **Compatibility fix:** upstream targets Boost ~1.65; modern GCC (≥8, e.g.
   Ubuntu 22.04's GCC 11) rejects the `#pragma pack(1)` + `aligned(64)`
-  combination in `blake2/blake2.h`. `patches/blake2-modern-gcc.patch` restores
-  the pack regions so only the wire-format param structs are packed and drops
+  combination in `blake2/blake2.h`. The Dockerfile applies inline `sed` to split
+  the pack regions so only the wire-format param structs are packed, and drops
   the state structs' alignment to 8 (their sizes are 192/200 bytes, not
-  multiples of 64). This is applied during the image build.
+  multiples of 64).
 - **Boost is statically linked**, so the runtime stage ships no boost packages —
   `ldd` shows only `libstdc++`, `libgcc_s`, `libm`, `libc`.
 - **Multi-stage:** builder compiles with `-j2` (safe in small containers); the
@@ -119,9 +119,8 @@ docker run --rm --memory=1g \
 ## Files
 
 ```
-Dockerfile                      multi-stage build (builder + runtime)
+Dockerfile                      multi-stage build (builder + runtime, inline GCC fix)
 start.sh                        entrypoint: config, launch, graceful shutdown
-patches/blake2-modern-gcc.patch modern-GCC fix for upstream blake2.h
 railway.toml                    Railway build/deploy configuration
 README.md                       this file
 ```

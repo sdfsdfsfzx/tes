@@ -40,12 +40,14 @@ RUN git clone https://github.com/VerusCoin/nheqminer.git \
     && git checkout ${NHEQMINER_REF}
 
 # Upstream targets Boost ~1.65. Modern GCC (>=8) rejects the combination of
-# `#pragma pack(1)` and `__attribute__((aligned(64)))` used in blake2.h. The
-# patch restructures the pack regions so only the wire-format param structs stay
-# packed, and drops the state structs' alignment from 64 to 8 (their sizes are
-# 192/200 bytes, not multiples of 64). See patches/blake2-modern-gcc.patch.
-COPY patches/blake2-modern-gcc.patch /build/nheqminer/
-RUN cd nheqminer && patch -p1 < blake2-modern-gcc.patch
+# `#pragma pack(1)` and `__attribute__((aligned(64)))` used in blake2.h.
+# Fix inline (no COPY needed): split the pack regions and drop alignment to 8.
+RUN cd nheqminer \
+    && sed -i 's/ALIGN( 64 ) typedef/ALIGN( 8 ) typedef/g' blake2/blake2.h \
+    && sed -i '/} blake2s_param;/a #pragma pack(pop)' blake2/blake2.h \
+    && sed -i '/typedef struct __blake2b_param/i #pragma pack(push, 1)' blake2/blake2.h \
+    && sed -i '/} blake2b_param;/a #pragma pack(pop)' blake2/blake2.h \
+    && sed -i '/^#pragma pack(pop)$/{N;/\n$/{N;/\n  \/\/ Streaming/s/^#pragma pack(pop)\n\n//}}' blake2/blake2.h
 
 # -j2 keeps the build well within small containers (2 vCPU / 512 MB profile).
 RUN mkdir -p nheqminer/build \
